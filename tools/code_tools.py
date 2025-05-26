@@ -11,21 +11,19 @@ from config.settings import MAX_SNIPPET_LENGTH, MAX_RETURNED_TAGS
 # Logger példányosítása a modulhoz
 logger = logging.getLogger(__name__)
 
-# A 'code_retriever' modul elérhetőségének ellenőrzése, ahogy az eredeti szkriptben is volt.
-# Feltételezzük, hogy a 'code_retriever.py' a projekt gyökérkönyvtárában vagy a PYTHONPATH-ban van.
+# A code_retriever.py-t a projekt gyökeréből próbáljuk importálni
+# (feltéve, hogy a main.py beállította a sys.path-ot)
 try:
-    import code_retriever
+    import code_retriever #
     _HAS_CODE_RETRIEVER_MODULE = True
+    logger.info("code_retriever.py sikeresen importálva a tools.code_tools modulba.")
 except ImportError:
     _HAS_CODE_RETRIEVER_MODULE = False
-    logger.warning("code_tools.py: code_retriever.py modul nem található. A get_code_snippet eszköz nem lesz működőképes.")
+    logger.warning("tools/code_tools.py: code_retriever.py modul nem található a projekt gyökerében. A get_code_snippet eszköz nem lesz működőképes.")
 
-
-# Megjegyzés: Ez a modul a 'tools' csomag globális változóitól függ,
-# amelyeket a tools/__init__.py-ban lévő `initialize_tool_data` állít be.
-# Különösen a `_project_root_global` és `_ctags_data_global` változóktól.
 _project_root_global: Optional[str] = None
-_ctags_data_global: Optional[Dict[str, List[Dict[str, Any]]]] = None
+_ctags_data_global: Optional[Dict[str, List[Dict[str, Any]]]] = None # Ezt a parsolt adatot kapja az __init__.py-ból
+
 
 
 # --- Kódrészlet Olvasó Eszköz ---

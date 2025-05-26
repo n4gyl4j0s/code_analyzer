@@ -25,20 +25,23 @@ from utils.output_parser import llm_output_xml_parser_and_fixer
 # Logger példányosítása
 logger = logging.getLogger(MAIN_LOGGER_NAME)
 
-# A külső, opcionális parserek importálása, ahogy az eredeti szkriptben volt
+# Most már a projekt gyökeréből importáljuk ezeket,
+# miután a main.py beállította a sys.path-ot.
 try:
-    import ctags_parser
+    import ctags_parser #
     HAS_CTAGS_PARSER = True
+    logger.info("ctags_parser.py sikeresen importálva.")
 except ImportError:
     HAS_CTAGS_PARSER = False
-    logging.warning("ctags_parser.py nem található, a ctags-specifikus funkciók nem lesznek elérhetők.")
+    logger.warning("ctags_parser.py nem található a projekt gyökerében, a ctags-specifikus funkciók nem lesznek elérhetők.")
 
 try:
-    import ast_parser
+    import ast_parser #
     HAS_AST_PARSER = True
+    logger.info("ast_parser.py sikeresen importálva.")
 except ImportError:
     HAS_AST_PARSER = False
-    logging.warning("ast_parser.py nem található, az AST-specifikus funkciók nem lesznek elérhetők.")
+    logger.warning("ast_parser.py nem található a projekt gyökerében, az AST-specifikus funkciók nem lesznek elérhetők.")
 
 
 def initialize_and_run_agent(
@@ -48,10 +51,6 @@ def initialize_and_run_agent(
     ctags_file_abs_str: Optional[str],
     ast_file_abs_str: Optional[str]
 ):
-    """
-    Ez a központi függvény, amely inicializálja és futtatja az ügynököt.
-    """
-    # 1. Adatok betöltése
     loaded_ctags_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
     loaded_ast_data: Optional[Dict[str, Dict[str, Any]]] = None
     loaded_narrative_context: Optional[str] = "Nincs elérhető projekt összefoglaló (V1 kontextus)."
@@ -65,28 +64,45 @@ def initialize_and_run_agent(
             logger.error(f"Hiba a narratív kontextus betöltése közben: {e}")
             loaded_narrative_context = "Hiba történt a V1 kontextus fájl olvasása közben."
 
+    # Ctags adatok betöltése és parsolása, HA a ctags_parser importálható volt
     if HAS_CTAGS_PARSER and ctags_file_abs_str and Path(ctags_file_abs_str).is_file():
-        logger.info(f"Ctags fájl feldolgozása: {ctags_file_abs_str}")
-        loaded_ctags_data = ctags_parser.parse_ctags_file(ctags_file_abs_str)
-        if loaded_ctags_data: logger.info("Ctags adatok sikeresen betöltve.")
+        logger.info(f"Ctags fájl feldolgozása indul: {ctags_file_abs_str}")
+        try:
+            loaded_ctags_data = ctags_parser.parse_ctags_file(ctags_file_abs_str) #
+            if loaded_ctags_data:
+                logger.info(f"Ctags adatok sikeresen betöltve és parsolva ({len(loaded_ctags_data)} fájlhoz).")
+            else:
+                logger.info(f"A ctags parsolás nem adott vissza adatot a '{ctags_file_abs_str}' fájlból.")
+        except Exception as e:
+            logger.error(f"Hiba a ctags fájl feldolgozása közben ({ctags_file_abs_str}): {e}", exc_info=True)
+    elif ctags_file_abs_str:
+        logger.warning(f"Megadott ctags adatfájl nem található ({ctags_file_abs_str}) vagy a ctags_parser nem érhető el.")
 
+    # AST adatok betöltése és parsolása, HA az ast_parser importálható volt
     if HAS_AST_PARSER and ast_file_abs_str and Path(ast_file_abs_str).is_file():
-        logger.info(f"AST JSONL fájl feldolgozása: {ast_file_abs_str}")
-        loaded_ast_data = ast_parser.parse_ast_jsonl_file(ast_file_abs_str)
-        if loaded_ast_data: logger.info("AST adatok sikeresen betöltve.")
+        logger.info(f"AST JSONL fájl feldolgozása indul: {ast_file_abs_str}")
+        try:
+            loaded_ast_data = ast_parser.parse_ast_jsonl_file(ast_file_abs_str) #
+            if loaded_ast_data:
+                logger.info(f"AST adatok sikeresen betöltve és parsolva ({len(loaded_ast_data)} fájlhoz).")
+            else:
+                logger.info(f"Az AST parsolás nem adott vissza adatot a '{ast_file_abs_str}' fájlból.")
+        except Exception as e:
+            logger.error(f"Hiba az AST fájl feldolgozása közben ({ast_file_abs_str}): {e}", exc_info=True)
+    elif ast_file_abs_str:
+        logger.warning(f"Megadott AST adatfájl nem található ({ast_file_abs_str}) vagy az ast_parser nem érhető el.")
 
-    # 2. Eszközök inicializálása
+    # Eszközök inicializálása a PARSOLT adatokkal
     initialize_tool_data(
         project_root=project_root_abs_str,
-        ctags_data=loaded_ctags_data,
-        ast_data=loaded_ast_data,
+        ctags_data=loaded_ctags_data,       # Itt már a parsolt adatokat adjuk át
+        ast_data=loaded_ast_data,         # Itt már a parsolt adatokat adjuk át
         narrative_context=loaded_narrative_context
     )
 
-    # Elérhető eszközök és a stratégiai útmutató lekérése
     final_active_tools_list, final_strategic_guidance = get_all_tools()
     
-    # 3. LLM és wrappereinek beállítása
+    # ... (LLM és AgentExecutor beállítása, futtatás - változatlan)
     try:
         selected_api_url = settings.API_URLS.get(settings.SERVER_MODE)
         if not selected_api_url:
@@ -96,7 +112,6 @@ def initialize_and_run_agent(
         thoughts_log_file_abs_path = Path.cwd() / settings.THOUGHTS_LOG_FILE_NAME
         direct_log_path = Path.cwd() / settings.DIRECT_LLM_INTERACTIONS_LOG_FILE_NAME
 
-        # Log fájlok inicializálása (törlés és fejléc írás)
         for log_path in [thoughts_log_file_abs_path, direct_log_path]:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             with open(log_path, "w", encoding="utf-8") as f:
@@ -127,7 +142,6 @@ def initialize_and_run_agent(
         logger.critical(f"Hiba az LLM inicializálása közben: {e}. Kilépés.", exc_info=True)
         return
 
-    # 4. Fallback logika, ha nincsenek eszközök
     if not final_active_tools_list:
         logger.error("Nincsenek elérhető eszközök. Egyszerű LLM válaszadás következik.")
         try:
@@ -142,14 +156,13 @@ def initialize_and_run_agent(
             print(f"Hiba az alap LLM hívás közben: {e_fallback}")
         return
 
-    # 5. Prompt és Agent létrehozása
     try:
         current_prompt_obj = create_prompt_template(final_active_tools_list, final_strategic_guidance)
         agent = create_react_agent(llm_to_use, final_active_tools_list, current_prompt_obj)
         agent_executor = AgentExecutor(
             agent=agent,
             tools=final_active_tools_list,
-            verbose=False, # A ConsoleToolCallbackHandler kezeli a kimenetet
+            verbose=False,
             max_iterations=25,
             handle_parsing_errors=(
                 "FORMÁTUM HIBA: A korábbi kimeneted nem volt a várt formátumban. "
@@ -161,7 +174,6 @@ def initialize_and_run_agent(
         logger.critical(f"Hiba az agent létrehozása közben: {e_agent}", exc_info=True)
         return
 
-    # 6. Agent futtatása
     logger.info(f"Agent inicializálva. Elérhető eszközök: {[tool.name for tool in final_active_tools_list]}")
     print(f"\n--- Kérdés az Agentnek a '{project_root_abs_str}' projektről ---")
     print(f"Kérdés: {user_prompt_str}")

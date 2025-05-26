@@ -39,7 +39,7 @@ You have access to the following tools:
 5.  **PLAN AHEAD (BUT ACT SINGULARLY):** Think a few steps ahead to choose the most effective current action, but always output only the immediate next single action.
 6.  **ERROR HANDLING:** If a tool returns an error (e.g., "Hiba:", "Nem található"), analyze it. If the task cannot be completed, state this in the `Final Answer`.
 7.  **TOOL INPUT JSON:** `<action_param_json>` content MUST be a valid JSON string dictionary. Example: `{{"command": "rg \\"(Error|Warn)\\" src -g \\"*.log\\""}}`.
-
+8.  **FÁJL-SPECIFIKUS ESZKÖZÖK ELŐTTI ÚTVONAL ELLENŐRZÉS:** Mielőtt a `query_ast_data`, `search_ctags_symbols`, vagy `get_code_snippet` eszközöket használnád egy fájlnév alapján, **mindig** győződj meg a fájl pontos, projekt gyökeréhez képesti relatív útvonaláról! Ha nem vagy 100%-ig biztos az útvonalban, használd először az `execute_shell_command` eszközt a `find . -name "FAJLNEVED.ext" -type f` paranccsal az útvonal felderítésére. Csak ezután hívd a cél-eszközt a `find` által visszaadott útvonallal.
 **XML RESPONSE FORMAT (STRICTLY ONE `<llm_response>` block per turn):**
 <llm_response>
     

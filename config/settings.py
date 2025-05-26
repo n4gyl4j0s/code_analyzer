@@ -20,7 +20,7 @@ API_URLS = {
 
 # A használt LLM modell neve és az API kulcs.
 MODEL_NAME = os.getenv("LLM_MODEL_NAME", "phi-4-14b-q6_k")
-
+API_KEY = "blabla"
 
 # --- Naplózási Fájlnevek ---
 # Ezeket a fájlokat a projekt gyökérkönyvtárában fogja létrehozni a script.

@@ -133,3 +133,4 @@ Az ügynök által használható összes eszköz logikája egy önálló Python 
 A nagyméretű és komplex promptok elkülönítése a kódtól nagyban javítja az átláthatóságot és a karbantarthatóságot.
 
 - **react_template.py**: Tartalmazza a fő ReAct prompt sablont és azt a logikát, amely dinamikusan, a rendelkezésre álló eszközök alapján építi fel a végső promptot.
+

@@ -6,7 +6,11 @@ from pathlib import Path
 # A .env fájl betöltése a legelső lépés kell, hogy legyen
 from dotenv import load_dotenv
 load_dotenv()
-
+import os
+import sys
+project_root = os.path.dirname(os.path.abspath(__file__))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 # Belső importok a projekt struktúrából
 from utils.logging_setup import configure_logging, MAIN_LOGGER_NAME
 from core.agent import initialize_and_run_agent

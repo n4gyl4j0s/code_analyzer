@@ -1,6 +1,7 @@
 # tools/ast_tools.py
 import logging
 import json
+import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -19,19 +20,62 @@ _ast_data_global: Optional[Dict[str, Dict[str, Any]]] = None
 
 # --- AST Lekérdező Segédfüggvények ---
 
+def _normalize_path_for_ast_lookup(file_path: str) -> str:
+    """Normalizál egy útvonalat az AST adatokban való kereséshez."""
+    # Eltávolítja a vezető "./" karaktersorozatot, ha van
+    normalized_path = file_path
+    if normalized_path.startswith("./"):
+        normalized_path = normalized_path[2:]
+    
+    # Eltávolítja a vezető "/" karaktersorozatot is, ha a relatív útvonal így kezdődne
+    # (bár ez ritkább, de a biztonság kedvéért)
+    if normalized_path.startswith("/"):
+        normalized_path = normalized_path[1:]
+
+    # További normalizálás (pl. dupla //, /./, /../ részek kezelése)
+    # Vigyázat: az os.path.normpath abszolút útvonalat csinálhat, ha a path /sel kezdődik Windows-on.
+    # Itt relatív útvonalakat várunk a projekt gyökeréhez képest.
+    # Egy egyszerűbb string replace is elég lehet a leggyakoribb esetekre,
+    # vagy egy robosztusabb relatív path normalizáló.
+    # Most az alap normpath-ot használjuk, de figyeljünk a viselkedésére.
+    # Legtöbb esetben a './' eltávolítása a legfontosabb.
+    normalized_path = os.path.normpath(normalized_path)
+    return normalized_path
+
 def _ast_get_file_data(file_path: str) -> Optional[Dict[str, Any]]:
     """Segédfüggvény: Visszaadja egy adott fájl AST adatait a globális tárolóból."""
     if _ast_data_global is None:
         logger.warning("_ast_get_file_data: Globális AST adatok nincsenek betöltve.")
         return None
     
-    data_for_file = _ast_data_global.get(file_path)
+    normalized_lookup_path = _normalize_path_for_ast_lookup(file_path)
+    
+    # Keresés a normalizált útvonallal
+    data_for_file = _ast_data_global.get(normalized_lookup_path)
+    
+    # Ha a normalizált útvonallal nem találtuk meg, de az eredeti útvonal más volt,
+    # próbálkozzunk az eredetivel is, hátha az AST kulcsok tartalmaznak "./"-t.
+    if data_for_file is None and file_path != normalized_lookup_path:
+        logger.debug(f"Normalizált útvonallal ('{normalized_lookup_path}') nem található AST adat. Próbálkozás az eredeti útvonallal ('{file_path}').")
+        data_for_file = _ast_data_global.get(file_path)
+
     if data_for_file is None:
-        logger.warning(f"_ast_get_file_data: Nem található AST adat a '{file_path}' fájlhoz.")
+        logger.warning(f"_ast_get_file_data: Nem található AST adat sem a '{normalized_lookup_path}', sem a '{file_path}' kulcshoz.")
         filename_only = Path(file_path).name
-        similar_keys = [k for k in _ast_data_global.keys() if filename_only in k]
-        if similar_keys:
-            logger.debug(f"  Lehetséges hasonló kulcsok az AST adatokban: {similar_keys[:5]}")
+        
+        # A "hasonló kulcsok" keresését is kiterjeszthetjük a normalizált formákra
+        similar_keys_found = []
+        if _ast_data_global: # Csak akkor keressünk, ha vannak adatok
+            for k_orig, v_data in _ast_data_global.items():
+                k_norm = _normalize_path_for_ast_lookup(k_orig)
+                if filename_only in k_orig or filename_only in k_norm:
+                    similar_keys_found.append(f"Eredeti kulcs: '{k_orig}', Normalizált kulcs: '{k_norm}'")
+        
+        if similar_keys_found:
+            logger.debug(f"  Lehetséges hasonló fájlnevek az AST adatokban (max 5): {similar_keys_found[:5]}")
+        else:
+            logger.debug(f"  Nem található hasonló fájlnév sem az AST adatokban '{filename_only}'-re.")
+            
     return data_for_file
 
 def ast_get_method_parameters(file_path: str, class_name: Optional[str], method_name: str) -> List[Dict[str, str]]:
