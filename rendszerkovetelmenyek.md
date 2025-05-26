@@ -41,8 +41,8 @@ Egy OpenAI-kompatibilis API-t biztosító szoftver szükséges.
 ## Nyelvi Modell Beállítása 🧠
 
 ### Ajánlott modell
-- **Modell:** `Qwen2-7B-Instruct-GGUF` 
-- **Forrás:** `Qwen/Qwen2-7B-Instruct-GGUF` repository
+- **Modell:** `Qwen3-8B-Instruct-GGUF` 
+- **Forrás:** `Qwen/Qwen3-8B-Instruct-GGUF` repository
 - **Verzió:** `q4_K_M` kvantált verzió (jó egyensúlyt kínál a méret és a teljesítmény között)
 
 ### Letöltés
