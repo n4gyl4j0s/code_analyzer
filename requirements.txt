@@ -1,0 +1,13 @@
+# requirements.txt
+
+# A LangChain keretrendszer alapcsomagja
+langchain
+
+# Az OpenAI-kompatibilis modellekkel (pl. helyi LLM-ek) való integrációhoz
+langchain-openai
+
+# A .env fájlokból való konfiguráció-betöltéshez
+python-dotenv
+
+# Az OpenAI által használt tokenizer, a tokenek számolásához
+tiktoken
