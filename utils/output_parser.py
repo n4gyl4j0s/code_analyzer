@@ -544,8 +544,7 @@ def llm_output_xml_parser_and_fixer(raw_llm_output_text: str) -> str:
 
 def clean_llm_action_input(raw_input: str) -> str:
     """
-    Tisztítja és validálja az LLM által az eszközöknek adott bemeneti stringet,
-    hogy az valószínűleg érvényes JSON legyen.
+    Megtisztítja az LLM által az eszközöknek adott bemeneti stringet a gyakori formázási hibáktól.
     """
     if not isinstance(raw_input, str) or not raw_input.strip():
         tools_logger.debug("clean_llm_action_input: Üres vagy nem string input, '{}' visszaadva.")
@@ -554,7 +553,7 @@ def clean_llm_action_input(raw_input: str) -> str:
     text_to_clean = raw_input.strip()
     tools_logger.debug(f"Tisztítás kezdete, nyers (stripelt) input: '{text_to_clean[:200]}...'")
 
-    # Smart quotes cseréje
+    # 1. "Smart quotes" (görbe idézőjelek) cseréje standard, egyenes idézőjelekre.
     smart_quotes_replacements = {'\u201c': '"', '\u201d': '"', '“': '"', '”': '"'}
     original_text_before_smart_quotes_fix = text_to_clean
     for smart, standard in smart_quotes_replacements.items():
@@ -563,18 +562,34 @@ def clean_llm_action_input(raw_input: str) -> str:
     if original_text_before_smart_quotes_fix != text_to_clean:
         tools_logger.info("Smart quotes javítva a clean_llm_action_input-ban.")
 
-    # Markdown kódblokk eltávolítása
+    # 2. Markdown kódblokk eltávolítása (pl. ```json...```)
     code_block_match = re.search(r"```(?:json|JSON)?\s*([\s\S]*?)\s*```", text_to_clean, re.DOTALL)
     if code_block_match:
         text_to_clean = code_block_match.group(1).strip()
         tools_logger.debug("Markdown kódblokk eltávolítva.")
+        
+    # 3. Felesleges záró karakterek (pl. '>', '">') eltávolítása a string végéről.
+    original_before_rstrip = text_to_clean
+    text_to_clean = text_to_clean.rstrip('>" ')
+    if original_before_rstrip != text_to_clean:
+        removed_part = original_before_rstrip[len(text_to_clean):]
+        tools_logger.info(f"Felesleges záró karakterek ('{removed_part}') eltávolítva az Action Input végéről.")
 
-    # JSON objektum vagy tömb izolálása
-    # ... (a teljes, komplex logika a JSON izoláláshoz a v2_tools.py-ból változatlanul idekerül)
+    # =================================================================================
+    # === ÚJ JAVÍTÁS: Hiányzó JSON lezáró karakter '}' pótlása ===
+    # =================================================================================
+    # Ellenőrizzük, hogy a string egy JSON objektumnak tűnik-e, aminek csak a végéről hiányzik a '}'.
+    # Pl. `{"command": "..."` helyett `{"command": "..."}`
+    if text_to_clean.startswith('{"') and text_to_clean.endswith('"') and not text_to_clean.endswith('"}'):
+        original_for_log = text_to_clean
+        # Betesszük a hiányzó '}' a string vége és az utolsó idézőjel közé.
+        text_to_clean = text_to_clean[:-1] + '}"'
+        tools_logger.info(f"Hiányzó '}}' pótolva a JSON stringben. Eredeti: '{original_for_log}', Javított: '{text_to_clean}'")
+    # =================================================================================
+    # === JAVÍTÁS VÉGE ===
+    # =================================================================================
 
-    # Gyakori JSON hibák javítása (aposztróf, záró vessző)
-    # ... (a teljes, komplex logika a hibajavításhoz a v2_tools.py-ból változatlanul idekerül)
-
+    # 5. Ha a tisztítás után üres lett a string, adjunk vissza egy valid üres JSON-t.
     if not text_to_clean.strip():
         tools_logger.debug("A tisztítási folyamat végén az input üres lett. '{}' visszaadva.")
         return "{}"

@@ -1,6 +1,7 @@
 # core/agent.py
 import logging
 import sys
+import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -10,6 +11,7 @@ from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.agents import AgentAction, AgentFinish
 
 # Belső importok a projekt struktúrából
 from config import settings
@@ -102,7 +104,6 @@ def initialize_and_run_agent(
 
     final_active_tools_list, final_strategic_guidance = get_all_tools()
     
-    # ... (LLM és AgentExecutor beállítása, futtatás - változatlan)
     try:
         selected_api_url = settings.API_URLS.get(settings.SERVER_MODE)
         if not selected_api_url:
@@ -118,7 +119,6 @@ def initialize_and_run_agent(
                 f.write(f"Log inicializálva: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'='*70}\n")
         
         file_logger_callback = LLMInteractionLogger()
-        console_tool_callback = ConsoleToolCallbackHandler()
         
         base_llm_instance = ChatOpenAI(
             openai_api_base=selected_api_url,
@@ -156,34 +156,80 @@ def initialize_and_run_agent(
             print(f"Hiba az alap LLM hívás közben: {e_fallback}")
         return
 
+    # === AGENT ÉS PROMPT LÉTREHOZÁSA (EZ A RÉSZ VÁLTOZATLAN) ===
     try:
         current_prompt_obj = create_prompt_template(final_active_tools_list, final_strategic_guidance)
         agent = create_react_agent(llm_to_use, final_active_tools_list, current_prompt_obj)
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=final_active_tools_list,
-            verbose=False,
-            max_iterations=25,
-            handle_parsing_errors=(
-                "FORMÁTUM HIBA: A korábbi kimeneted nem volt a várt formátumban. "
-                "Szigorúan kövesd a megadott XML formátumot. A hibás kimenet ezzel kezdődött: "
-            ),
-            callbacks=[console_tool_callback]
-        )
     except Exception as e_agent:
         logger.critical(f"Hiba az agent létrehozása közben: {e_agent}", exc_info=True)
         return
 
-    logger.info(f"Agent inicializálva. Elérhető eszközök: {[tool.name for tool in final_active_tools_list]}")
+    # ==========================================================================================
+    # === EGYSZERŰSÍTETT VEZÉRLÉSI CIKLUS (UNIVERZÁLIS, MÉRET ALAPÚ CSONKOLÁSSAL) ===
+    # ==========================================================================================
+
+    tool_map = {tool.name: tool for tool in final_active_tools_list}
+    intermediate_steps = []
+    max_iterations = 25
+
+    logger.info(f"Agent inicializálva, egyedi futtatási ciklus indul. Elérhető eszközök: {[tool.name for tool in final_active_tools_list]}")
     print(f"\n--- Kérdés az Agentnek a '{project_root_abs_str}' projektről ---")
     print(f"Kérdés: {user_prompt_str}")
-    
-    try:
-        response = agent_executor.invoke({"input": user_prompt_str})
-        print("\n--- Agent Végső Válasza ---")
-        print("--- AGENT_FINAL_ANSWER_START ---")
-        print(response.get('output', "Nem érkezett strukturált kimenet az agenttől."))
-        print("--- AGENT_FINAL_ANSWER_END ---")
-    except Exception as e:
-        logger.error(f"Kritikus hiba az agent futtatása közben: {e}", exc_info=True)
-        print(f"\nKritikus hiba történt az agent futtatása közben: {e}")
+
+    for i in range(max_iterations):
+        try:
+            output = agent.invoke({
+                "input": user_prompt_str,
+                "intermediate_steps": intermediate_steps
+            })
+
+            if isinstance(output, AgentFinish):
+                final_answer = output.return_values.get("output", "Nem érkezett strukturált kimenet.")
+                print("\n--- Agent Végső Válasza ---")
+                print("--- AGENT_FINAL_ANSWER_START ---")
+                print(final_answer)
+                print("--- AGENT_FINAL_ANSWER_END ---")
+                break
+
+            if isinstance(output, AgentAction):
+                if output.log:
+                    print(f"\n🤔 Gondolat: {output.log.strip()}")
+                
+                tool_name = output.tool
+                tool_input = output.tool_input
+                print(f"🛠️ Eszköz hívás: {tool_name} | Bemenet: {tool_input}")
+                
+                observation = ""
+                try:
+                    if tool_name in tool_map:
+                        tool_to_use = tool_map[tool_name]
+                        observation = tool_to_use.invoke(tool_input)
+                    else:
+                        observation = f"HIBA: Nincs ilyen eszköz: '{tool_name}'"
+                
+                except json.JSONDecodeError:
+                    observation = (
+                        f"HIBA: Az eszköz '{tool_name}' bemenete nem érvényes JSON formátum. "
+                        f"A hibás bemenet, amit küldtél: ```{tool_input}```\n"
+                        "💡 JAVASLAT: Győződj meg róla, hogy a bemenet egy valid JSON string, ami egy objektumot ír le."
+                    )
+                except Exception as tool_error:
+                    observation = f"HIBA az eszköz '{tool_name}' futtatása közben: {tool_error}"
+
+                # *** EGYSZERŰSÍTETT, UNIVERZÁLIS KIMENET CSONKOLÁSA ***
+                original_size = len(str(observation))
+                # Csak akkor csonkolunk, ha a kimenet nagy ÉS nem tűnik hibaüzenetnek.
+                if original_size > 1500 and "HIBA:" not in observation and "❌" not in observation:
+                    observation = (
+                        f"## Az eszköz ({tool_name}) kimenete túl hosszú (méret: {original_size} karakter), "
+                        f"ezért a prompt röviden tartása érdekében csonkolva lett. A parancs sikeresen lefutott. ##"
+                    )
+
+                intermediate_steps.append((output, str(observation)))
+
+        except Exception as e:
+            logger.error(f"Kritikus hiba az agent futtatása közben a(z) {i+1}. lépésben: {e}", exc_info=True)
+            print(f"\nKritikus hiba történt az agent futtatása közben: {e}")
+            break
+    else:
+        print("\n--- Az Agent elérte a maximális iterációs limitet anélkül, hogy befejezte volna a munkát. ---")

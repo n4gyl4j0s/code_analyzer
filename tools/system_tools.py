@@ -173,14 +173,27 @@ def tool_wrapper_execute_shell_command(action_input_str: str) -> str:
     logger.info(f"Eszköz HÍVVA: execute_shell_command, input: {action_input_str}")
     command_to_run = None
     
-    action_input_str = clean_llm_action_input(action_input_str)
-    logger.debug(f"Shell eszköz: A tisztítás utáni input: '{action_input_str}'")
+    # *** JAVÍTÁS: Robusztusabb input tisztítás ***
+    # Először a meglévő tisztítóval tisztítunk, ami eltávolítja az XML-t és a kódrészlet jelölőket.
+    cleaned_input = clean_llm_action_input(action_input_str)
+    
+    # Megpróbáljuk a leggyakoribb LLM-es formázási hibákat javítani, pl. a felesleges záró karaktereket
+    if cleaned_input.endswith('}]"'):
+        cleaned_input = cleaned_input[:-3] + '}"'
+        logger.debug(f"Automatikus JSON javítás történt ('}}]\"' -> '}}\"'). Új input: '{cleaned_input}'")
+    elif cleaned_input.endswith("}]"):
+        cleaned_input = cleaned_input[:-2] + "}"
+        logger.debug(f"Automatikus JSON javítás történt ('}}]' -> '}}'). Új input: '{cleaned_input}'")
+
+    logger.debug(f"Shell eszköz: A tisztítás utáni input: '{cleaned_input}'")
 
     try:
-        args = json.loads(action_input_str)
+        # A tisztított inputot használjuk a továbbiakban
+        args = json.loads(cleaned_input)
         command_to_run = args.get("command")
         if not command_to_run or not isinstance(command_to_run, str):
             return "HIBA: Érvénytelen vagy hiányzó 'command' kulcs a JSON inputban."
+
 
         command_parts = command_to_run.split()
         if not command_parts: return "HIBA: Üres parancsot kapott."
