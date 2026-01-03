@@ -1,74 +1,78 @@
-# Projekt Elemző LLM Ügynök
+# ⚠️ Status: Archived / Experimental
 
-Ez a projekt egy Python nyelven írt, [LangChain](https://www.langchain.com/) keretrendszerre épülő intelligens ügynök, amely képes szoftverprojektek forráskódjának elemzésére és a kóddal kapcsolatos kérdések megválaszolására. Az ügynök különböző eszközöket használ (shell parancsok, `ctags`, Absztrakt Szintaxis Fa elemzés) az információk kinyeréséhez.
+**Note:** This repository was a proof-of-concept for running local LLMs with LangChain. It is no longer actively maintained as the workflow has migrated to cloud-native solutions (GitHub Copilot / VS Code Agent Mode). It remains as a reference implementation for custom LangChain agents and RAG pipelines — use it as an example, not a production-ready solution. Use at your own risk: the code may be outdated, incomplete, or contain security issues.
 
-A projekt erősen modularizált, hogy a karbantarthatóság, tesztelhetőség és bővíthetőség a lehető legegyszerűbb legyen.
+# Project Analyzer LLM Agent
 
-## Telepítés és beállítás
+This project is an intelligent agent written in Python, built on the [LangChain](https://www.langchain.com/) framework, that can analyze the source code of software projects and answer questions about the code. The agent uses several tools (shell commands, `ctags`, Abstract Syntax Tree analysis) to extract information.
 
-### 1. Klónozza a repository-t:
+The project is highly modular to make maintainability, testability, and extensibility easy.
+
+## Installation and setup
+
+### 1. Clone the repository:
 ```bash
 git clone <repository_url>
-cd <repository_mappa>
+cd <repository_folder>
 ```
 
-### 2. Hozzon létre egy virtuális környezetet (ajánlott):
+### 2. Create a virtual environment (recommended):
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 .\venv\Scripts\activate  # Windows
 ```
 
-### 3. Telepítse a szükséges Python csomagokat:
+### 3. Install required Python packages:
 ```bash
 pip install -r requirements.txt
 ```
-*A `requirements.txt` fájlnak legalább a következőket kell tartalmaznia: `langchain`, `langchain-openai`, `python-dotenv`, `tiktoken`.*
+*The `requirements.txt` should include at least: `langchain`, `langchain-openai`, `python-dotenv`, `tiktoken`.*
 
-### 4. Hozzon létre egy `.env` fájlt:
-Hozza létre a projekt gyökérkönyvtárában a `.env` fájlt a konfigurációs változók tárolására. Használja a `.env.example` mintát, ha van.
+### 4. Create a `.env` file:
+Create a `.env` file in the project root to store configuration variables. Use `.env.example` if available.
 ```env
-# Az LLM szerver címe (pl. LM Studio, Oobabooga)
+# LLM server URL (e.g., LM Studio, Oobabooga)
 LLM_API_URL_L="http://localhost:1234/v1"
 
-# A használt modell neve (az LLM szerver által megadott)
+# Model name provided by the LLM server
 LLM_MODEL_NAME="phi-4-14b-q6_k"
 
-# Bármilyen API kulcs (sok helyi szerverhez nem szükséges)
+# Any API key (not required for many local servers)
 LLM_API_KEY="dummy-key"
 ```
 
-### 5. Telepítse a külső eszközöket (opcionális):
-A `shell` eszköz hatékonyabb használatához ajánlott a `ripgrep` (`rg`) telepítése.
+### 5. Install optional external tools:
+For improved shell tool performance, installing `ripgrep` (`rg`) is recommended.
 
-## Futtatás
+## Running
 
-A program a `main.py` szkripten keresztül indítható parancssorból.
+The application can be started from the command line via `main.py`.
 
-**Példa a futtatásra:**
+**Example run:**
 ```bash
 python main.py \
   --project-root "/path/to/your/project/to/analyze" \
-  --prompt "Keresd meg az összes olyan Java fájlt, amely az 'X-Forwarded-For' headert használja, és listázd a metódusokat, amelyekben előfordul." \
+  --prompt "Find all Java files that use the 'X-Forwarded-For' header and list the methods where it appears." \
   --ctags-file "/path/to/your/project/to/analyze/.analyzer_tags" \
   --ast-file "/path/to/your/project/to/analyze/ast_input.jsonl" \
   --debug
 ```
 
-### Parancssori argumentumok:
-- `--project-root`: (Kötelező) A vizsgálandó projekt gyökérkönyvtára.
-- `--prompt`: (Kötelező) A kérdés, amit az ügynöknek szegezünk.
-- `--v1-context-file`: (Opcionális) Egy korábbi, magas szintű elemzés szöveges összefoglalóját tartalmazó fájl.
-- `--ctags-file`: (Opcionális) Az előre generált ctags adatfájl útvonala. Ha nincs megadva, a program keresi a `--project-root` alatt `.analyzer_tags` néven.
-- `--ast-file`: (Opcionális) Az előre generált AST adatfájl (.jsonl) útvonala. Ha nincs megadva, a program keresi `ast_input.jsonl` vagy `ast_input.jsonl.gz` néven.
-- `--debug`: (Opcionális) Részletesebb naplózás bekapcsolása a konzolra.
+### Command-line arguments:
+- `--project-root`: (Required) Path to the project root to analyze.
+- `--prompt`: (Required) The question to ask the agent.
+- `--v1-context-file`: (Optional) A text file containing a previous high-level analysis summary.
+- `--ctags-file`: (Optional) Path to a pre-generated ctags data file. If not provided, the program looks for `.analyzer_tags` under `--project-root`.
+- `--ast-file`: (Optional) Path to a pre-generated AST data file (.jsonl). If not provided, the program looks for `ast_input.jsonl` or `ast_input.jsonl.gz`.
+- `--debug`: (Optional) Enable more verbose logging to the console.
 
-## Projekt felépítése
+## Project structure
 
-A projekt logikai egységek mentén csomagokba és modulokba van szervezve.
+The project is organized into packages and modules according to logical responsibilities.
 
 ```
-projekt_elemzo/
+project_analyzer/
 │
 ├── config/
 │   ├── __init__.py
@@ -99,38 +103,38 @@ projekt_elemzo/
 └── main.py
 ```
 
-## Komponensek részletezése
+## Component details
 
-### main.py (Belépési Pont) ▶️
-Ez a szkript az alkalmazás indításáért felel. Csak a parancssori argumentumok feldolgozását, a konfiguráció és a naplózás beállítását, valamint a központi `core.agent` modul meghívását végzi.
+### main.py (Entry point) ▶️
+This script is responsible for starting the application. It handles command-line arguments, sets up configuration and logging, and invokes the central `core.agent` module.
 
 ### config/settings.py ⚙️
-Ez a modul felel a projekt statikus konfigurációjáért, egy központi helyre gyűjtve a beállításokat. Könnyen módosítható anélkül, hogy a program logikájába bele kellene nyúlni. Támogatja az értékek `.env` fájlból való felülírását.
+This module holds the project's static configuration in a single place. It is easy to modify without changing application logic and supports overriding values from a `.env` file.
 
-### core/ (A mag) 🧠
-Itt található az alkalmazás központi logikája, amely összefogja a többi komponenst.
+### core/ (The core) 🧠
+This package contains the main application logic that orchestrates other components.
 
-- **agent.py**: A fő vezérlési logika. Ez a modul felelős az összes többi komponens (LLM, eszközök, promptok) összehangolásáért, az ügynök felépítéséért és a futtatás vezérléséért.
-- **llm_wrapper.py**: Egy egyedi `LLMWithOutputFixer` osztályt definiál, amely becsomagolja a standard LangChain LLM-et. A felelőssége, hogy minden LLM-választ átfuttasson egy javító parseren, mielőtt az visszakerülne az ügynökhöz, így biztosítva a strukturált és tiszta kimenetet.
+- **agent.py**: The main orchestration logic. This module is responsible for coordinating all other components (LLM, tools, prompts), building the agent, and controlling execution.
+- **llm_wrapper.py**: Defines a custom `LLMWithOutputFixer` class that wraps the standard LangChain LLM. Its responsibility is to run every LLM response through a fixer/parser before returning it to the agent, ensuring structured and clean outputs.
 
-### tools/ (Eszközök csomagja) 🧰
-Az ügynök által használható összes eszköz logikája egy önálló Python csomagba került, témakörök szerint bontva.
+### tools/ (Tools package) 🧰
+All agent tools are implemented inside a dedicated Python package and organized by concern.
 
-- **__init__.py**: A csomag "kapuja". Inicializálja az eszközökhöz szükséges adatokat (pl. AST adatok) és dinamikusan összeállítja az aktív eszközök listáját a `get_all_tools()` függvénnyel.
-- **system_tools.py**: A rendszerrel és a fájlrendszerrel való általános interakciókért felelős eszközök (pl. `execute_shell_command`, `identify_project_characteristics`).
-- **code_tools.py**: A forráskóddal közvetlenül foglalkozó eszközök (pl. `get_code_snippet` a kódrészletek olvasásához, `search_ctags_symbols` a ctags alapú kereséshez).
-- **ast_tools.py**: Az előfeldolgozott Absztrakt Szintaxis Fa (AST) adatok lekérdezéséért felelős eszközök, amelyek mély, strukturális információkat nyernek ki a kódból.
-- **project_context_tools.py**: A projekt magas szintű, előfeldolgozott kontextusával kapcsolatos eszközök (pl. `get_project_summary_v1`).
+- **__init__.py**: Package entry point. It initializes data needed by tools (e.g., AST data) and dynamically builds the list of active tools via `get_all_tools()`.
+- **system_tools.py**: Tools for system and file-system interactions (e.g., `execute_shell_command`, `identify_project_characteristics`).
+- **code_tools.py**: Tools that operate directly on source code (e.g., `get_code_snippet` to read code snippets, `search_ctags_symbols` for ctags-based searches).
+- **ast_tools.py**: Tools for querying preprocessed Abstract Syntax Tree (AST) data, extracting deep structural information from code.
+- **project_context_tools.py**: Tools for high-level, preprocessed project context (e.g., `get_project_summary_v1`).
 
-### utils/ (Segédfüggvények csomagja) 🛠️
-Általános célú, a projekt több pontján is felhasználható függvényeket és osztályokat tartalmaz.
+### utils/ (Utility package) 🛠️
+Contains general-purpose functions and classes used across the project.
 
-- **logging_setup.py**: Központilag állítja be az alkalmazás naplózási (logging) viselkedését.
-- **callbacks.py**: Egyedi LangChain CallbackHandler-ek az LLM-interakciók és eszközhívások részletes naplózásához és konzolon való megjelenítéséhez.
-- **output_parser.py**: A projekt egyik legfontosabb segédmodulja, amely az LLM által generált, esetenként hibás szöveges kimenetet alakítja át tiszta, strukturált formátumra, amit az ügynök fel tud dolgozni.
+- **logging_setup.py**: Sets up centralized logging behavior for the application.
+- **callbacks.py**: Custom LangChain CallbackHandlers for detailed logging of LLM interactions and tool calls and for console output.
+- **output_parser.py**: One of the project's critical helper modules; it transforms occasionally malformed textual LLM outputs into a clean, structured format that the agent can consume.
 
-### prompts/ (Prompt Sablonok) 📝
-A nagyméretű és komplex promptok elkülönítése a kódtól nagyban javítja az átláthatóságot és a karbantarthatóságot.
+### prompts/ (Prompt templates) 📝
+Separating large and complex prompts from code improves clarity and maintainability.
 
-- **react_template.py**: Tartalmazza a fő ReAct prompt sablont és azt a logikát, amely dinamikusan, a rendelkezésre álló eszközök alapján építi fel a végső promptot.
+- **react_template.py**: Contains the main ReAct prompt template and the logic that dynamically constructs the final prompt based on the available tools.
 
