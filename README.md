@@ -30,7 +30,7 @@ pip install -r requirements.txt
 *The `requirements.txt` should include at least: `langchain`, `langchain-openai`, `python-dotenv`, `tiktoken`.*
 
 ### 4. Create a `.env` file:
-Create a `.env` file in the project root to store configuration variables. Use `.env.example` if available.
+Create a `.env` file in the project root to store configuration variables. Use `.env.example` as a template and **do not commit** your `.env` file to version control.
 ```env
 # LLM server URL (e.g., LM Studio, Oobabooga)
 LLM_API_URL_L="http://localhost:1234/v1"
@@ -38,9 +38,11 @@ LLM_API_URL_L="http://localhost:1234/v1"
 # Model name provided by the LLM server
 LLM_MODEL_NAME="phi-4-14b-q6_k"
 
-# Any API key (not required for many local servers)
-LLM_API_KEY="dummy-key"
+# Your LLM API key (leave blank in this example; put your actual key in your local .env)
+LLM_API_KEY=
 ```
+
+**Security note:** Do not store production API keys or secrets in this repository. Add `LLM_API_KEY` to your local `.env` (or use a secret manager) and ensure `.env` is listed in `.gitignore`. If you use CI/CD, configure secrets in your CI provider rather than committing them to the repo.
 
 ### 5. Install optional external tools:
 For improved shell tool performance, installing `ripgrep` (`rg`) is recommended.

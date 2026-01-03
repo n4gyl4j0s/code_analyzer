@@ -30,7 +30,7 @@ pip install -r requirements.txt
 *A `requirements.txt` fájlnak legalább a következőket kell tartalmaznia: `langchain`, `langchain-openai`, `python-dotenv`, `tiktoken`.*
 
 ### 4. Hozzon létre egy `.env` fájlt:
-Hozza létre a projekt gyökérkönyvtárában a `.env` fájlt a konfigurációs változók tárolására. Használja a `.env.example` mintát, ha van.
+Hozza létre a projekt gyökérkönyvtárában a `.env` fájlt a konfigurációs változók tárolására. Használja a ` .env.example` fájlt sablonként, és **ne** töltse fel a `.env` fájlt a verziókezelőbe.
 ```env
 # Az LLM szerver címe (pl. LM Studio, Oobabooga)
 LLM_API_URL_L="http://localhost:1234/v1"
@@ -38,9 +38,11 @@ LLM_API_URL_L="http://localhost:1234/v1"
 # A használt modell neve (az LLM szerver által megadott)
 LLM_MODEL_NAME="phi-4-14b-q6_k"
 
-# Bármilyen API kulcs (sok helyi szerverhez nem szükséges)
-LLM_API_KEY="dummy-key"
+# Az LLM API kulcsod (ebben a példában üresen hagyjuk; a saját kulcsodat a helyi .env fájlba írjad)
+LLM_API_KEY=
 ```
+
+**Biztonsági megjegyzés:** Ne tárolj éles API kulcsokat vagy titkokat ebben a repository-ban. Add hozzá a `LLM_API_KEY`-t a helyi `.env`-edhez (vagy használj secret managert), és ügyelj rá, hogy a `.env` szerepeljen a `.gitignore`-ban. CI/CD használatakor a titkokat a CI rendszerben konfiguráld, ne a repo-ban.
 
 ### 5. Telepítse a külső eszközöket (opcionális):
 A `shell` eszköz hatékonyabb használatához ajánlott a `ripgrep` (`rg`) telepítése.
